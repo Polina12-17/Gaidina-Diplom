@@ -1,4 +1,5 @@
 import glob  # для работы с папочками и файликами
+import math
 import os
 import rawpy
 
@@ -19,22 +20,43 @@ class NoGTDataset(data.Dataset):  # подгрузка данных
         print("Total data samples:", len(self.data_list))
 
     def __getitem__(self, index):  # получают по индексу сам файл
-        input_path = self.data_list[index]
-        if (input_path.lower().endswith('.jpg') or input_path.lower().endswith('.png')):
-            im = cv2.imread(input_path)
+        path = self.data_list[index]
+        if (path.lower().endswith('.jpg')):
+            im = cv2.imread(path, cv2.IMREAD_UNCHANGED)[:, :, ::-1]
         else:
-            #print("error input path", input_path)
-            raw = rawpy.imread(input_path)  # access to the RAW image
-            rgb = raw.postprocess()  # a numpy RGB array
-            im = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-        assert im is not None, input_path
-        im = im[:, :, ::-1]
+            raw = rawpy.imread(path)  # access to the RAW image
+
+            # print(raw.color_desc) выводит порядок цветов в изображении
+
+            raw_image = raw.raw_image.copy()
+
+            raw.close()
+
+
+            rgb = raw_image  # a numpy RGB array
+
+            # print(rgb.shape)
+
+            im = rgb
+
+        # img = cv2.imread(path)[:, :, ::-1]
         if self.resize is not None:
             im = cv2.resize(im, (self.resize, self.resize))
-        im = im / 255.0
-        im = torch.from_numpy(im).float().permute(2, 0, 1)
+        im = im / (math.pow(2,14) - 1)
+
+        if(im.max() > 1.0):
+            print("im min = ", im.min())
+            print("im max = ", im.max())
+
+        im = torch.from_numpy(im).float()
+
+        h, w = im.shape
+        im = im.reshape((1, h, w))
+        # print(im.shape)
+
+        # print("тест ")
         if self.return_name:
-            return im, os.path.join(*input_path.split("/")[-2:])
+            return im, os.path.join(*path.split("/")[-2:])
         return im
 
     def __len__(self):  # общее количество элементов в датасете

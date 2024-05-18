@@ -28,7 +28,7 @@ def main():
         trainer_defaults={
             "callbacks": ModelCheckpoint(
                 filename="{epoch:02d}-{val_metric:.2f}",
-                every_n_epochs=10,
+                every_n_epochs=3,
                 save_last=True,
             )
         },
@@ -41,7 +41,7 @@ def main():
     run=False: Не запускает CLI сразу после создания экземпляра. Это означает, что пользователю нужно будет явно вызвать метод запуска CLI.
     trainer_defaults: Параметры по умолчанию для тренера (обучателя). В данном случае, это включает коллбэк ModelCheckpoint, который будет сохранять модели на диске каждые 10 эпох и сохранять последнюю эпоху.
     '''
-
+    print(cli.trainer.default_root_dir)
 
     cli.trainer.logger = pl.loggers.TensorBoardLogger(  # настройка логгера
         save_dir=cli.trainer.default_root_dir,

@@ -14,6 +14,7 @@ def read_image(path):
         img = cv2.imread(path)[:, :, ::-1]
     else:
         raw = rawpy.imread(path)  # access to the RAW image
+
         rgb = raw.postprocess()  # a numpy RGB array
         img = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)[:, :, ::-1]
 
