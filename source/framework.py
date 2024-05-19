@@ -3,7 +3,6 @@ import os
 import piq  # для оценки изображения
 import torch
 import torchvision
-from iqa import IQA
 from loss import TVLoss
 from model import UnetTMO
 from pytorch_lightning.core.lightning import LightningModule
@@ -30,15 +29,13 @@ class PSENet(LightningModule):  # нейронка для ??? сегментац
         self.model = UnetTMO()
         self.mse = torch.nn.MSELoss()  # функция потерь todo это шо???
         self.tv = TVLoss()  # регуляризация общей вариации todo
-        self.iqa = IQA()  # алгоритм оценки качества изображений todo
         self.saved_input = None
-        self.saved_pseudo_gt = None
+        self.saved_gt = None
 
     def configure_optimizers(self):  # переопределения функции родителя
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr,
                                      betas=[0.9, 0.99])  # это то что обучает нейронку и меняет в ней веса
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, factor=0.5,
-                                                               verbose=True)  # динамически изменять скорость обучения в зависимости от поведения функции потерь. Если в течение определенного количества эпох (указано параметром patience) значение функции потерь не уменьшится, скорость обучения будет уменьшена в factor раз.
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, factor=0.5)  # динамически изменять скорость обучения в зависимости от поведения функции потерь. Если в течение определенного количества эпох (указано параметром patience) значение функции потерь не уменьшится, скорость обучения будет уменьшена в factor раз.
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "total_loss"}
 
     def training_epoch_end(self, outputs):  # переопределения функции родителя . вызывается в конце каждой
@@ -50,69 +47,34 @@ class PSENet(LightningModule):  # нейронка для ??? сегментац
             sch.step(
                 self.trainer.callback_metrics["total_loss"])  ## адаптирует шаг обучения в зависимости от функции потерь
 
-    def generate_pseudo_gt(self, im):
-        bs, ch, h, w = im.shape
-        assert ch == 1, "This function expects single-channel images."
-
-        underexposed_ranges = torch.linspace(0, self.gamma_upper, steps=self.number_refs + 1).to(im.device)[:-1]
-        step_size = self.gamma_upper / self.number_refs
-        underexposed_gamma = torch.exp(
-            torch.rand([bs, self.number_refs], device=im.device) * step_size + underexposed_ranges[None, :]
-        )
-
-        overrexposed_ranges = torch.linspace(self.gamma_lower, 0, steps=self.number_refs + 1).to(im.device)[:-1]
-        step_size = - self.gamma_lower / self.number_refs
-        overrexposed_gamma = torch.exp(
-            torch.rand([bs, self.number_refs], device=im.device) * step_size + overrexposed_ranges[None, :]
-        )
-
-        gammas = torch.cat([underexposed_gamma, overrexposed_gamma], dim=1)
-
-        synthetic_references = 1 - (1 - im[:, None]) ** gammas[:, :, None, None, None]
-
-        previous_iter_output = self.model(im)[0].clone().detach()
-        references = torch.cat([im[:, None], previous_iter_output[:, None], synthetic_references], dim=1)
-
-        nref = references.shape[1]
-        scores = self.iqa(references.view(bs * nref, ch, h, w))
-
-        scores = scores.view(bs, nref, 1, h, w)
-        max_idx = torch.argmax(scores, dim=1)
-        max_idx = max_idx.repeat(1, ch, 1, 1)[:, None]
-        pseudo_gt = torch.gather(references, 1, max_idx)
-        return pseudo_gt.squeeze(1)
-
-    def training_step(self, batch, batch_idx):  # определяет шаг обучения модели во время каждой эпохи обучения
-
-        nth_input = batch  # Получает текущий ввод
-        nth_pseudo_gt = self.generate_pseudo_gt(batch)  # генерирует псевдо-целевое изображение с помощью метода
+    def training_step(self, batch, batch_idx):
+        nth_input, nth_gt = batch
         if self.saved_input is not None:  # не работает для первой итерации
-            # Вычисление потерь и обновление весов модели
             im = self.saved_input
-            # Вычисляет потери реконструкции и регуляризации, а затем вычисляет общую потерю
             pred_im, pred_gamma = self.model(im)
-            pseudo_gt = self.saved_pseudo_gt
-            reconstruction_loss = self.mse(pred_im, pseudo_gt)
-            tv_loss = self.tv(pred_gamma)
+            img_gt = self.saved_gt
+
+            reconstruction_loss = self.mse(pred_im, img_gt)
+            tv_loss = self.tv(pred_gamma, img_gt)
             loss = reconstruction_loss + tv_loss * self.tv_w
 
             # logging
-            self.log(
-                "train_loss/", {"reconstruction": reconstruction_loss, "tv": tv_loss}, on_epoch=True, on_step=False
-            )
+            self.log("train_loss/reconstruction", reconstruction_loss, on_epoch=True, on_step=False)
+            self.log("train_loss/tv", tv_loss, on_epoch=True, on_step=False)
             self.log("total_loss", loss, on_epoch=True, on_step=False)
+
             if batch_idx == 0:
-                # Если текущий пакет является первым в эпохе (batch_idx == 0),
-                # визуализирует входное изображение, псевдо-целевое изображение и выход модели с помощью TensorBoard
-                visuals = [im, pseudo_gt, pred_im]
+                # Визуализируем входное изображение, эталонное изображение и выход модели
+                visuals = [im, img_gt, pred_im]
                 visuals = torchvision.utils.make_grid([v[0] for v in visuals])
                 self.logger.experiment.add_image("images", visuals, self.current_epoch)
         else:
             loss = None
             self.log("total_loss", 0, on_epoch=True, on_step=False)
-        # Сохраняет текущий ввод и псевдо-целевое изображение для использования на следующей итерации
+
         self.saved_input = nth_input
-        self.saved_pseudo_gt = nth_pseudo_gt
+        self.saved_gt = nth_gt
+
         return loss
 
     def validation_step(self, batch, batch_idx):  # Метод validation_step используется для

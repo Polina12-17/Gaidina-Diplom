@@ -4,37 +4,25 @@ from debayer import Debayer5x5
 
 f = Debayer5x5().cuda()
 
+class TVLoss(torch.nn.Module):
+    def __init__(self):
+        super(TVLoss, self).__init__()
+        self.l1_loss = torch.nn.L1Loss()  # Определим L1Loss
 
-class TVLoss(torch.nn.Module):  # реализует операцию регуляризации, называемую Total Variation Loss
-    # Он работает путем минимизации разницы между соседними пикселями в изображении.
-    def forward(self, y):
-        print("y len = ", len(y.shape))
-        print("y.shape", y.shape)
-        if (len(y.shape) == 4):
-            print("y val  = ", y[0][0][0][0])
+    def forward(self, pred, target):
+        if pred.size(1) != 1:
+            raise ValueError("Expected pred to have 1 channel, but got {} channels".format(pred.size(1)))
+        if target.size(1) != 1:
+            raise ValueError("Expected target to have 1 channel, but got {} channels".format(target.size(1)))
+
         with torch.no_grad():
-            x = f(y)
-        print("x shape", x.shape)
-        print("x val =", x[0][0][0][0])
-        x = torch.log(x + 1e-3)  # Входной тензор x сначала преобразуется с
-        # помощью логарифмической функции для стабилизации
-        # значений и предотвращения потенциального деления на ноль
-        h_tv = torch.pow((x[:, :, 1:, :] - x[:, :, :-1, :]), 2)
-        w_tv = torch.pow((x[:, :, :, 1:] - x[:, :, :, :-1]), 2)  # Вычисляются разницы между значениями
-        print("return result = ", torch.mean(h_tv) + torch.mean(w_tv))
-        # соседних пикселей по вертикали и горизонтали соответственно
-        return torch.mean(h_tv) + torch.mean(w_tv)  # Рассчитывается среднее значение квадратов вертикальных и
-        # горизонтальных разностей между соседними
-        # пикселями, а затем эти значения суммируются
-        # для создания общей TV Loss
+            debayer_pred = f(pred)
+            debayer_target = f(target)
 
+        # Проверка на правильное количество каналов после дебайеринга
+        if debayer_pred.size(1) != 3:
+            raise ValueError("Expected debayer_pred to have 3 channels, but got {} channels".format(debayer_pred.size(1)))
+        if debayer_target.size(1) != 3:
+            raise ValueError("Expected debayer_target to have 3 channels, but got {} channels".format(debayer_target.size(1)))
 
-'''
-Этот метод эффективно сглаживает изображение,
-уменьшая разницу между соседними пикселями. В
-результате обычно уменьшается эффект шума и
-улучшается визуальное качество изображения.
-TV Loss является одним из методов регуляризации,
-который помогает предотвратить переобучение
-модели на шумных деталях изображения
-'''
+        return self.l1_loss(debayer_pred, debayer_target)
