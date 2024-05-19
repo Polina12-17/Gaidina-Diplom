@@ -19,37 +19,37 @@ class InMemoryDataset(Dataset):
         self.data = []
         for path in self.data_list:
             im = self.read_image(path, resize)
-            im_gt = self.read_image(get_label_fn(path), resize)
+            im_gt = self.read_image(get_label_fn(path), resize, True)
             self.data.append((im, im_gt))
         print("Total data samples:", len(self.data))
 
     @staticmethod
-    def read_image(path, resize, is_raw=True):
+    def read_image(path, resize, is_Target=False):
         print("path ", path)
 
         if path.lower().endswith('.jpg') or path.lower().endswith('.png'):
             im = cv2.imread(path, cv2.IMREAD_UNCHANGED)[:, :, ::-1]
-        elif is_raw:
+        elif not is_Target:
             raw = rawpy.imread(path)
             im = raw.raw_image.copy()
             raw.close()
         else:
             raw = rawpy.imread(path)
             rgb = raw.postprocess()
-            im = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+            im = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)[:, :, ::-1]
             raw.close()
 
         assert im is not None, path
         if resize is not None:
             im = cv2.resize(im, (resize, resize))
 
-        if is_raw:
+        if not is_Target:
             im = im / (math.pow(2, 14) - 1)
         else:
             im = im / 255.0
 
         im = torch.from_numpy(im).float()
-        if is_raw:
+        if not is_Target:
             h, w = im.shape
             im = im.reshape((1, h, w))
         else:
@@ -75,7 +75,7 @@ class AfifiDataModule(LightningDataModule):
             gt_path = re.sub(r'\s*\(\d+\)?(\.[^.]+)$', r'_gt\1', gt_path)
             return gt_path
 
-        self.train_data = InMemoryDataset(data_root, "training/INPUT_IMAGES/*.*", get_label_fn, resize=255,
+        self.train_data = InMemoryDataset(data_root, "training/INPUT_IMAGES/*.*", get_label_fn, resize=256,
                                           return_name=False)
         self.train_loader = DataLoader(self.train_data, batch_size=train_batch_size, shuffle=True,
                                        num_workers=num_workers)

@@ -63,11 +63,6 @@ class PSENet(LightningModule):  # нейронка для ??? сегментац
             self.log("train_loss/tv", tv_loss, on_epoch=True, on_step=False)
             self.log("total_loss", loss, on_epoch=True, on_step=False)
 
-            if batch_idx == 0:
-                # Визуализируем входное изображение, эталонное изображение и выход модели
-                visuals = [im, img_gt, pred_im]
-                visuals = torchvision.utils.make_grid([v[0] for v in visuals])
-                self.logger.experiment.add_image("images", visuals, self.current_epoch)
         else:
             loss = None
             self.log("total_loss", 0, on_epoch=True, on_step=False)
