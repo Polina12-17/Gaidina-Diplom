@@ -10,18 +10,22 @@ from pytorch_lightning.utilities.cli import DATAMODULE_REGISTRY
 from torch.utils.data import DataLoader, Dataset
 
 
-
-class NoGTDataset(Dataset):
+class InMemoryDataset(Dataset):
     def __init__(self, root_folder, pattern, get_label_fn, resize=None, return_name=False):
         super().__init__()
         self.data_list = sorted(glob.glob(root_folder + pattern, recursive=True))
-        self.gt_list = [get_label_fn(p) for p in self.data_list]
         self.resize = resize
         self.return_name = return_name
-        print("Total data samples:", len(self.data_list))
+        self.data = []
+        for path in self.data_list:
+            im = self.read_image(path, resize)
+            im_gt = self.read_image(get_label_fn(path), resize)
+            self.data.append((im, im_gt))
+        print("Total data samples:", len(self.data))
 
-    def read_image(self, path, is_raw=False):
-        #print("path ", path)
+    @staticmethod
+    def read_image(path, resize, is_raw=True):
+        print("path ", path)
 
         if path.lower().endswith('.jpg') or path.lower().endswith('.png'):
             im = cv2.imread(path, cv2.IMREAD_UNCHANGED)[:, :, ::-1]
@@ -36,8 +40,8 @@ class NoGTDataset(Dataset):
             raw.close()
 
         assert im is not None, path
-        if self.resize is not None:
-            im = cv2.resize(im, (self.resize, self.resize))
+        if resize is not None:
+            im = cv2.resize(im, (resize, resize))
 
         if is_raw:
             im = im / (math.pow(2, 14) - 1)
@@ -53,16 +57,10 @@ class NoGTDataset(Dataset):
         return im
 
     def __getitem__(self, index):
-        input_path = self.data_list[index]
-        input_im = self.read_image(input_path, is_raw=True)
-
-        gt_im = self.read_image(self.gt_list[index], is_raw=True)
-        if self.return_name:
-            return input_im, gt_im, os.path.join(*input_path.split("/")[-2:])
-        return input_im, gt_im
+        return self.data[index]
 
     def __len__(self):
-        return len(self.data_list)
+        return len(self.data)
 
 
 @DATAMODULE_REGISTRY
@@ -77,17 +75,17 @@ class AfifiDataModule(LightningDataModule):
             gt_path = re.sub(r'\s*\(\d+\)?(\.[^.]+)$', r'_gt\1', gt_path)
             return gt_path
 
-        self.train_data = NoGTDataset(data_root , "training/INPUT_IMAGES/*.*", get_label_fn, resize=255,
-                                      return_name=False)
+        self.train_data = InMemoryDataset(data_root, "training/INPUT_IMAGES/*.*", get_label_fn, resize=255,
+                                          return_name=False)
         self.train_loader = DataLoader(self.train_data, batch_size=train_batch_size, shuffle=True,
                                        num_workers=num_workers)
 
-        self.val_data = NoGTDataset(data_root , "validation/INPUT_IMAGES/*.*", get_label_fn, resize=512,
-                                    return_name=False)
+        self.val_data = InMemoryDataset(data_root, "validation/INPUT_IMAGES/*.*", get_label_fn, resize=512,
+                                        return_name=False)
         self.val_loader = DataLoader(self.val_data, batch_size=val_batch_size, shuffle=False, num_workers=num_workers)
 
-        self.test_data = NoGTDataset(data_root , "testing/INPUT_IMAGES/*.*", get_label_fn, resize=None,
-                                     return_name=True)
+        self.test_data = InMemoryDataset(data_root, "testing/INPUT_IMAGES/*.*", get_label_fn, resize=None,
+                                         return_name=True)
         self.test_loader = DataLoader(self.test_data, batch_size=1, shuffle=False, num_workers=num_workers)
 
     def train_dataloader(self):
