@@ -60,7 +60,9 @@ for path in input_images:
     image, raw = read_image(path)
     img = raw.postprocess(use_camera_wb=True, no_auto_bright=True, output_bps=16,
                                            demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR)
-    cv2.imwrite(path.replace(args.input_dir, args.output_dir).replace(".CR2", "_test.png"), img,
+    bgr_out = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+    cv2.imwrite(path.replace(args.input_dir, args.output_dir).replace(".CR2", "_test.png"), bgr_out,
                 [cv2.IMWRITE_PNG_COMPRESSION, 0])
     with torch.no_grad():
         output, _ = model(image)
@@ -84,5 +86,5 @@ for path in input_images:
     rgb_out = torch.clip(rgb_out[0].permute(1, 2, 0), 0.0, 1.0).numpy() * 255.0
     rgb_out = rgb_out.astype(np.uint8)
     bgr_out = cv2.cvtColor(rgb_out, cv2.COLOR_RGB2BGR)
-    cv2.imwrite(path.replace(args.input_dir, args.output_dir).replace(".CR2", ".png"), rgb_out,
+    cv2.imwrite(path.replace(args.input_dir, args.output_dir).replace(".CR2", ".png"), bgr_out,
                 [cv2.IMWRITE_PNG_COMPRESSION, 0])
