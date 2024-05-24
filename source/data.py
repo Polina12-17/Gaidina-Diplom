@@ -31,12 +31,7 @@ class InMemoryDataset(Dataset):
             im = cv2.imread(path, cv2.IMREAD_UNCHANGED)[:, :, ::-1]
         elif not is_Target:
             raw = rawpy.imread(path)
-            im = raw.raw_image.copy()
-            raw.close()
-        else:
-            raw = rawpy.imread(path)
-            rgb = raw.postprocess()
-            im = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)[:, :, ::-1]
+            im = raw.raw_image_visible.copy()
             raw.close()
 
         assert im is not None, path
@@ -44,7 +39,7 @@ class InMemoryDataset(Dataset):
             im = cv2.resize(im, (resize, resize))
 
         if not is_Target:
-            im = im / (math.pow(2, 14) - 1)
+            im = im / (math.pow(2, 16) - 1)
         else:
             im = im / 255.0
 
@@ -72,7 +67,7 @@ class AfifiDataModule(LightningDataModule):
             # Заменить папку "INPUT_IMAGES" на "GT_IMAGES"
             gt_path = path.replace("INPUT_IMAGES", "GT_IMAGES")
             # Удалить приписку в конце имени файла, если она существует, и заменить на "_gt" с сохранением формата
-            gt_path = re.sub(r'\s*\(\d+\)?(\.[^.]+)$', r'_gt\1', gt_path)
+            gt_path = gt_path.replace(".CR2",".jpg")
             return gt_path
 
         self.train_data = InMemoryDataset(data_root, "training/INPUT_IMAGES/*.*", get_label_fn, resize=256,

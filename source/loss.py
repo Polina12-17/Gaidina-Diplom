@@ -8,7 +8,7 @@ f = Debayer5x5().cuda()
 class TVLoss(torch.nn.Module):
     def __init__(self):
         super(TVLoss, self).__init__()
-        self.l1_loss = torch.nn.L1Loss()  # Определим L1Loss
+        self.l1_loss = torch.nn.SmoothL1Loss()  # Определим L1Loss
 
     def forward(self, pred, target):
         if pred.size(1) != 1:

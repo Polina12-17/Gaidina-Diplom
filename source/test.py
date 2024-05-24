@@ -15,11 +15,7 @@ def read_image(path, is_raw=False):
     # print("path ", path)
 
     raw = rawpy.imread(path)
-    print(raw.color_desc )
-    print(raw.raw_pattern  )
-    print(type(raw))
-    im = raw.raw_image
-    print(type(im))
+    im = raw.postprocess(bright=True)
 
     raw.close()
 
@@ -29,7 +25,7 @@ def read_image(path, is_raw=False):
 
     im = torch.from_numpy(im).float()
 
-#    im = im.permute(2, 0, 1)
+    im = im.permute(2, 0, 1)
     return im
 
 
@@ -65,4 +61,4 @@ for path in input_images:
     image = read_image(path).cuda()
     # with torch.no_grad():
     #     output, _ = model(image)
-    #torchvision.utils.save_image(image, path.replace(args.input_dir, args.output_dir) + ".jpg")
+    torchvision.utils.save_image(image, path.replace(args.input_dir, args.output_dir) + ".jpg")
