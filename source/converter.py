@@ -6,11 +6,13 @@ import torchvision
 
 path = "..\\data_root\\cr2_afifi\\training\\INPUT_IMAGES\\"
 
+
 def read_image(path, is_raw=False):
     # print("path ", path)
 
     raw = rawpy.imread(path)
-    im = raw.postprocess(bright=True)
+    im = raw.postprocess(bright=True, use_camera_wb=True,
+                         demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR)
 
     raw.close()
 
@@ -23,10 +25,10 @@ def read_image(path, is_raw=False):
     im = im.permute(2, 0, 1)
     return im
 
-data_list  = sorted(glob.glob(path + "*.*", recursive=True))
+
+data_list = sorted(glob.glob(path + "*.*", recursive=True))
 for p in data_list:
     print(p)
     im = read_image(p)
-    np = p.replace("INPUT_IMAGES", "GT_IMAGES").replace("CR2","jpg")
+    np = p.replace("INPUT_IMAGES", "GT_IMAGES").replace("CR2", "png")
     torchvision.utils.save_image(im, np)
-

@@ -75,6 +75,6 @@ data:
   class_path: data.AfifiDataModule
   init_args:
     data_root: ../data_root/cr2_afifi/
-    train_batch_size: 64
+    train_batch_size: 1
     val_batch_size: 4
-    num_workers: 4
+    num_workers: 0

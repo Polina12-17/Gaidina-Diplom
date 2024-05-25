@@ -8,6 +8,9 @@ from model import UnetTMO
 from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.utilities.cli import MODEL_REGISTRY
 
+from source.debayer import debayer
+from source.storage import rawList
+
 
 def save_image(im, p):
     base_dir = os.path.split(p)[0]
@@ -17,7 +20,8 @@ def save_image(im, p):
 
 
 @MODEL_REGISTRY
-class PSENet(LightningModule):  # нейронка для ??? сегментации текста на изображениях
+class PSENet(LightningModule):
+
     def __init__(self, tv_w, gamma_lower, gamma_upper, number_refs, lr, afifi_evaluation=False):
         super().__init__()
         self.tv_w = tv_w
@@ -35,7 +39,8 @@ class PSENet(LightningModule):  # нейронка для ??? сегментац
     def configure_optimizers(self):  # переопределения функции родителя
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr,
                                      betas=[0.9, 0.99])  # это то что обучает нейронку и меняет в ней веса
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, factor=0.5)  # динамически изменять скорость обучения в зависимости от поведения функции потерь. Если в течение определенного количества эпох (указано параметром patience) значение функции потерь не уменьшится, скорость обучения будет уменьшена в factor раз.
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10,
+                                                               factor=0.5)  # динамически изменять скорость обучения в зависимости от поведения функции потерь. Если в течение определенного количества эпох (указано параметром patience) значение функции потерь не уменьшится, скорость обучения будет уменьшена в factor раз.
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "total_loss"}
 
     def training_epoch_end(self, outputs):  # переопределения функции родителя . вызывается в конце каждой
@@ -48,14 +53,15 @@ class PSENet(LightningModule):  # нейронка для ??? сегментац
                 self.trainer.callback_metrics["total_loss"])  ## адаптирует шаг обучения в зависимости от функции потерь
 
     def training_step(self, batch, batch_idx):
-        nth_input, nth_gt = batch
+        nth_input, nth_raw_index, nth_gt = batch
         if self.saved_input is not None:  # не работает для первой итерации
-            im = self.saved_input
+            im = self.saved_input[0]
             pred_im, pred_gamma = self.model(im)
             img_gt = self.saved_gt
-
-            reconstruction_loss = self.mse(pred_im, img_gt)
-            tv_loss = self.tv(pred_gamma, img_gt)
+            raw = self.saved_raw
+            debayered_img = debayer(pred_im, raw)
+            tv_loss = self.tv(pred_gamma, raw, img_gt)  # ????
+            reconstruction_loss = self.mse(debayered_img, img_gt)
             loss = reconstruction_loss + tv_loss * self.tv_w
 
             # logging
@@ -68,6 +74,7 @@ class PSENet(LightningModule):  # нейронка для ??? сегментац
             self.log("total_loss", 0, on_epoch=True, on_step=False)
 
         self.saved_input = nth_input
+        self.saved_raw = rawList[nth_raw_index]
         self.saved_gt = nth_gt
 
         return loss

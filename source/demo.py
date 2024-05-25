@@ -66,7 +66,7 @@ for path in input_images:
                 [cv2.IMWRITE_PNG_COMPRESSION, 0])
     with torch.no_grad():
         output, _ = model(image)
-
+    print(type(output))
     output_image = output[0, 0].cpu().numpy()  # Первый элемент кортежа и извлекаем первый канал
 
     # Преобразование выходного тензора обратно в формат Bayer для rawpy

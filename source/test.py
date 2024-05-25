@@ -1,64 +1,50 @@
-import argparse
-import glob
-import math
-import os
-
 import cv2
-import numpy as np
-import torch
-import torchvision
-from model import UnetTMO
-import rawpy
+from torch import nn
+
+from source.data import InMemoryDataset
+from source.debayer import debayer
+
+device = "cpu"
 
 
-def read_image(path, is_raw=False):
-    # print("path ", path)
+class newMO(nn.Module):
 
-    raw = rawpy.imread(path)
-    im = raw.postprocess(bright=True)
-
-    raw.close()
-
-    assert im is not None, path
-
-    im = im / 255.0
-
-    im = torch.from_numpy(im).float()
-
-    im = im.permute(2, 0, 1)
-    return im
+    def forward(self, x):
+        return x, x
 
 
-def read_pytorch_lightning_state_dict(ckpt):
-    new_state_dict = {}
-    for k, v in ckpt["state_dict"].items():
-        if k.startswith("model."):
-            new_state_dict[k[len("model."):]] = v
-        else:
-            new_state_dict[k] = v
-    return new_state_dict
+def get_label_fn(path):
+    # Заменить папку "INPUT_IMAGES" на "GT_IMAGES"
+    gt_path = path.replace("samples", "output")
+    # Удалить приписку в конце имени файла, если она существует, и заменить на "_gt" с сохранением формата
+    gt_path = gt_path.replace(".CR2", ".png")
+    return gt_path
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--checkpoint", type=str, default="..\\pretrained\\my_afifi_14_epoh_loss_240.ckpt")
-parser.add_argument("--input_dir", type=str, default="samples")
-parser.add_argument("--output_dir", type=str, default="output")
+dataset = InMemoryDataset("", "samples/*.*", get_label_fn,
+                          return_name=False)
 
-args = parser.parse_args()
+print(len(dataset.rawList))
+print(len(InMemoryDataset.rawList))
 
-model = UnetTMO()
-state_dict = read_pytorch_lightning_state_dict(torch.load(args.checkpoint))
-model.load_state_dict(state_dict)
+counter = 0;
+
+model = newMO()
 model.eval()
-model.cuda()
+model.cpu()
 
-if not os.path.exists(args.output_dir):
-    os.makedirs(args.output_dir)
 
-input_images = glob.glob(os.path.join(args.input_dir, "*"))
-for path in input_images:
-    print(path)
-    image = read_image(path).cuda()
-    # with torch.no_grad():
-    #     output, _ = model(image)
-    torchvision.utils.save_image(image, path.replace(args.input_dir, args.output_dir) + ".jpg")
+
+
+for sample in dataset:
+    counter += 1
+    img, raw, gt = sample
+    output_image, _ = model(img)
+    bgr_out = debayer(output_image, raw)
+
+    cv2.imwrite("test_output/" + str(counter) + ".png", bgr_out,
+                [cv2.IMWRITE_PNG_COMPRESSION, 0])
+
+
+
+    cv2.imwrite(f"test_output/{counter}_gt.png", gt, [cv2.IMWRITE_PNG_COMPRESSION, 0])

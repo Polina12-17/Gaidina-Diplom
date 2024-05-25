@@ -7,6 +7,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.utilities.cli import DATAMODULE_REGISTRY, MODEL_REGISTRY, LightningCLI
 
 
+
 class CustomLightningCLI(LightningCLI): ## класс для работы с аргументами командной строки
     def add_arguments_to_parser(self, parser):
         parser.add_argument("--pipeline", choices=["full", "train", "test"])
@@ -16,8 +17,8 @@ class CustomLightningCLI(LightningCLI): ## класс для работы с а�
 
 
 def main():
-    MODEL_REGISTRY.register_classes(framework, pl.core.lightning.LightningModule)  # регистрируем нашу модель
-    DATAMODULE_REGISTRY.register_classes(data, pl.core.LightningDataModule)  # регистрируем наши данные
+    MODEL_REGISTRY.register_classes(framework.PSENet, pl.core.lightning.LightningModule)  # регистрируем нашу модель
+    DATAMODULE_REGISTRY.register_classes(data.AfifiDataModule, pl.core.LightningDataModule)  # регистрируем наши данные
 
     cli = CustomLightningCLI(
         auto_registry=True,
