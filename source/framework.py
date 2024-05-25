@@ -3,7 +3,6 @@ import os
 import piq  # для оценки изображения
 import torch
 import torchvision
-from loss import TVLoss
 from model import UnetTMO
 from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.utilities.cli import MODEL_REGISTRY
@@ -32,7 +31,7 @@ class PSENet(LightningModule):
         self.lr = lr  # скорость обучения
         self.model = UnetTMO()
         self.mse = torch.nn.MSELoss()  # функция потерь todo это шо???
-        self.tv = TVLoss()  # регуляризация общей вариации todo
+        self.tv = torch.nn.SmoothL1Loss()  # регуляризация общей вариации todo
         self.saved_input = None
         self.saved_gt = None
 
@@ -60,10 +59,14 @@ class PSENet(LightningModule):
             img_gt = self.saved_gt
             raw = self.saved_raw
             debayered_img = debayer(pred_im, raw)
-            tv_loss = self.tv(pred_gamma, raw, img_gt)  # ????
-            reconstruction_loss = self.mse(debayered_img, img_gt)
-            loss = reconstruction_loss + tv_loss * self.tv_w
+            debayered_img.requires_grad = True
+            #pred_gamma.requires_grad = True
+            img_gt.requires_grad = True
 
+            tv_loss = self.tv(debayer(pred_gamma,raw ), img_gt)  # ????
+            reconstruction_loss = self.mse(debayered_img, img_gt)
+
+            loss = reconstruction_loss + tv_loss
             # logging
             self.log("train_loss/reconstruction", reconstruction_loss, on_epoch=True, on_step=False)
             self.log("train_loss/tv", tv_loss, on_epoch=True, on_step=False)

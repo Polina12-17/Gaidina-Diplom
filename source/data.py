@@ -22,7 +22,7 @@ class InMemoryDataset(Dataset):
         for index, path in enumerate(self.data_list):
             im, raw = self.read_raw(path, resize)
             rawList.append(raw)
-            im_gt = self.read_png_to_matrix(get_label_fn(path),resize)
+            im_gt = self.read_png_to_matrix(get_label_fn(path), resize)
             self.data.append((im, index, im_gt))
         print("Total data samples:", len(self.data))
 
@@ -53,12 +53,10 @@ class InMemoryDataset(Dataset):
         # Преобразование в тензор PyTorch с порядком осей (1, C, H, W)
         image_tensor = torch.from_numpy(image).permute(2, 0, 1).unsqueeze(0)  # (1, C, H, W)
 
-        image_tensor = (image_tensor * 255).to(torch.uint8)
         image_tensor = image_tensor.squeeze(0).permute(1, 2, 0).cpu().numpy()
         return image_tensor
 
     def __getitem__(self, index):
-        print(" aaaaaa", index, len(rawList))
         return self.data[index]
 
     def __len__(self):
