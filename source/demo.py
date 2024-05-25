@@ -9,7 +9,7 @@ import torch
 from torch import nn
 
 
-#from model import UnetTMO
+from model import UnetTMO
 
 class newMO(nn.Module):
 
@@ -39,15 +39,15 @@ def read_pytorch_lightning_state_dict(ckpt):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--checkpoint", type=str, default="..\\pretrained\\with_rawpy_postprocess_loss_283.ckpt")
+parser.add_argument("--checkpoint", type=str, default="..\\pretrained\\last.ckpt")
 parser.add_argument("--input_dir", type=str, default="samples")
 parser.add_argument("--output_dir", type=str, default="output")
 
 args = parser.parse_args()
 
-model = newMO()
+model = UnetTMO()
 state_dict = read_pytorch_lightning_state_dict(torch.load(args.checkpoint, map_location))
-#model.load_state_dict(state_dict)
+model.load_state_dict(state_dict)
 model.eval()
 model.cpu()
 
