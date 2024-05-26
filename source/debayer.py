@@ -23,4 +23,5 @@ def debayer(output_image, raw):
 
     bgr_out /= 255.0
     bgr_out = bgr_out.unsqueeze(0)
+    bgr_out.requires_grad = True
     return bgr_out

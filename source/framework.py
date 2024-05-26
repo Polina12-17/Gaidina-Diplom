@@ -59,14 +59,25 @@ class PSENet(LightningModule):
             img_gt = self.saved_gt
             raw = self.saved_raw
             debayered_img = debayer(pred_im, raw)
-            debayered_img.requires_grad = True
-            #pred_gamma.requires_grad = True
-            img_gt.requires_grad = True
 
-            tv_loss = self.tv(debayer(pred_gamma,raw ), img_gt)  # ????
+            tv_loss = self.tv(debayer(pred_gamma, raw), img_gt)  # ????
             reconstruction_loss = self.mse(debayered_img, img_gt)
 
             loss = reconstruction_loss + tv_loss
+
+            # После одного шага оптимизации, напечатайте значения градиентов
+            # for name, param in self.model.named_parameters():
+            #     if param.grad is not None:
+            #         print(f"{name}: {param.grad.norm()}")
+            #     else:
+            #         print(f"{name}: No gradient")
+            #
+            for name, param in self.model.named_parameters():
+                if not param.requires_grad:
+                    print(f"{name} does not require grad")
+                else:
+                    print(f"{name} ok")
+
             # logging
             self.log("train_loss/reconstruction", reconstruction_loss, on_epoch=True, on_step=False)
             self.log("train_loss/tv", tv_loss, on_epoch=True, on_step=False)

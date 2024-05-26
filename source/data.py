@@ -37,6 +37,7 @@ class InMemoryDataset(Dataset):
         assert raw_image is not None, path
         im = np.expand_dims(raw_image, axis=0)  # Добавляем канал
         bayer_batch = torch.from_numpy(im).unsqueeze(0)  # (1, 1, H, W)
+        bayer_batch.requires_grad = True
         return bayer_batch, raw
 
     @staticmethod
@@ -53,7 +54,8 @@ class InMemoryDataset(Dataset):
         # Преобразование в тензор PyTorch с порядком осей (1, C, H, W)
         image_tensor = torch.from_numpy(image).permute(2, 0, 1).unsqueeze(0)  # (1, C, H, W)
 
-        image_tensor = image_tensor.squeeze(0).permute(1, 2, 0).cpu().numpy()
+        image_tensor = image_tensor.squeeze(0).permute(1, 2, 0).cpu()
+        image_tensor.requires_grad = True
         return image_tensor
 
     def __getitem__(self, index):
