@@ -3,12 +3,12 @@ import os
 import piq  # для оценки изображения
 import torch
 import torchvision
-from model import UnetTMO
 from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.utilities.cli import MODEL_REGISTRY
 
-from source.debayer import debayer
-from source.storage import rawList
+from model import UnetTMO
+from source.currentDebayer import debayer
+from source.myLoss import TVLoss
 
 
 def save_image(im, p):
@@ -31,7 +31,8 @@ class PSENet(LightningModule):
         self.lr = lr  # скорость обучения
         self.model = UnetTMO()
         self.mse = torch.nn.MSELoss()  # функция потерь todo это шо???
-        self.tv = torch.nn.SmoothL1Loss()  # регуляризация общей вариации todo
+        self.tv = TVLoss()  # регуляризация общей вариации todo
+        self.l1 = torch.nn.SmoothL1Loss()  # регуляризация общей вариации todo
         self.saved_input = None
         self.saved_gt = None
 
@@ -52,18 +53,17 @@ class PSENet(LightningModule):
                 self.trainer.callback_metrics["total_loss"])  ## адаптирует шаг обучения в зависимости от функции потерь
 
     def training_step(self, batch, batch_idx):
-        nth_input, nth_raw_index, nth_gt = batch
+        nth_input, nth_gt = batch
         if self.saved_input is not None:  # не работает для первой итерации
             im = self.saved_input[0]
             pred_im, pred_gamma = self.model(im)
             img_gt = self.saved_gt
-            raw = self.saved_raw
-            debayered_img = debayer(pred_im, raw)
+            debayered_img = debayer(pred_im)
 
-            tv_loss = self.tv(debayer(pred_gamma, raw), img_gt)  # ????
-            reconstruction_loss = self.mse(debayered_img, img_gt)
+            # tv_loss = self.tv(debayer(pred_gamma))
+            reconstruction_loss = self.l1(debayered_img, img_gt)
 
-            loss = reconstruction_loss + tv_loss
+            loss = reconstruction_loss * self.tv_w  # + tv_loss * self.tv_w
 
             # После одного шага оптимизации, напечатайте значения градиентов
             # for name, param in self.model.named_parameters():
@@ -71,16 +71,16 @@ class PSENet(LightningModule):
             #         print(f"{name}: {param.grad.norm()}")
             #     else:
             #         print(f"{name}: No gradient")
-            #
-            for name, param in self.model.named_parameters():
-                if not param.requires_grad:
-                    print(f"{name} does not require grad")
-                else:
-                    print(f"{name} ok")
+
+            # for name, param in self.model.named_parameters():
+            #     if not param.requires_grad:
+            #         print(f"{name} does not require grad")
+            #     else:
+            #         print(f"{name} ok")
 
             # logging
             self.log("train_loss/reconstruction", reconstruction_loss, on_epoch=True, on_step=False)
-            self.log("train_loss/tv", tv_loss, on_epoch=True, on_step=False)
+            # self.log("train_loss/tv", tv_loss, on_epoch=True, on_step=False)
             self.log("total_loss", loss, on_epoch=True, on_step=False)
 
         else:
@@ -88,7 +88,6 @@ class PSENet(LightningModule):
             self.log("total_loss", 0, on_epoch=True, on_step=False)
 
         self.saved_input = nth_input
-        self.saved_raw = rawList[nth_raw_index]
         self.saved_gt = nth_gt
 
         return loss
@@ -128,16 +127,3 @@ class PSENet(LightningModule):
                 else:
                     self.log("psnr_over", psnr, on_step=False, on_epoch=True)
                     self.log("ssim_over", ssim, on_step=False, on_epoch=True)
-
-
-'''
-Оценка качества предсказаний: Если в пакете данных (batch) 
-также присутствуют настоящие метки (gt), то вычисляются метрики качества, 
-такие как PSNR и SSIM, сравнивая предсказанные изображения с настоящими метками.
- Затем значения метрик логируются с помощью метода self.log.
- 
-При необходимости оценка качества на недо- и переэкспонированных 
-изображениях: Если включен режим afifi_evaluation, проверяется, 
-принадлежит ли изображение к недо- или переэкспонированным, и затем вычисляются 
-и логируются метрики качества для каждого типа изображений.
-'''

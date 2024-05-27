@@ -8,8 +8,6 @@ from pytorch_lightning.core import LightningDataModule
 from pytorch_lightning.utilities.cli import DATAMODULE_REGISTRY
 from torch.utils.data import DataLoader, Dataset
 
-from source.storage import rawList
-
 
 class InMemoryDataset(Dataset):
 
@@ -20,10 +18,9 @@ class InMemoryDataset(Dataset):
         self.return_name = return_name
         self.data = []
         for index, path in enumerate(self.data_list):
-            im, raw = self.read_raw(path, resize)
-            rawList.append(raw)
+            im = self.read_raw(path, resize)
             im_gt = self.read_png_to_matrix(get_label_fn(path), resize)
-            self.data.append((im, index, im_gt))
+            self.data.append((im, im_gt))
         print("Total data samples:", len(self.data))
 
     @staticmethod
@@ -31,14 +28,14 @@ class InMemoryDataset(Dataset):
         print("path ", path)
         raw = rawpy.imread(path)
         # Получаем сырое изображение в формате Bayer
-        raw_image = raw.raw_image_visible.astype(np.float32) / np.iinfo(raw.raw_image_visible.dtype).max
+        raw_image = raw.raw_image_visible.copy().astype(np.float32) / (2**14-1)
         if (resize is not None):
             raw_image = cv2.resize(raw_image, (resize, resize))
         assert raw_image is not None, path
         im = np.expand_dims(raw_image, axis=0)  # Добавляем канал
-        bayer_batch = torch.from_numpy(im).unsqueeze(0)  # (1, 1, H, W)
+        bayer_batch = torch.from_numpy(raw_image).unsqueeze(0).unsqueeze(0)  # (1, 1, H, W)
         bayer_batch.requires_grad = True
-        return bayer_batch, raw
+        return bayer_batch
 
     @staticmethod
     def read_png_to_matrix(path, resize):
@@ -46,17 +43,14 @@ class InMemoryDataset(Dataset):
 
         # Чтение изображения
         image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+        image = image / 255.0
 
-        # Преобразование изображения в формат numpy с диапазоном значений от 0 до 1
-        image = image.astype(np.float32) / 255.0
         if (resize is not None):
             image = cv2.resize(image, (resize, resize))
-        # Преобразование в тензор PyTorch с порядком осей (1, C, H, W)
-        image_tensor = torch.from_numpy(image).permute(2, 0, 1).unsqueeze(0)  # (1, C, H, W)
-
-        image_tensor = image_tensor.squeeze(0).permute(1, 2, 0).cpu()
-        image_tensor.requires_grad = True
-        return image_tensor
+        image = torch.from_numpy(image).float()
+        image = image.permute(2, 0, 1).unsqueeze(0)
+        image.requires_grad = True
+        return image
 
     def __getitem__(self, index):
         return self.data[index]

@@ -5,6 +5,7 @@ import torch
 import torchvision
 
 path = "..\\data_root\\cr2_afifi\\training\\INPUT_IMAGES\\"
+#path = ".\\samples\\"
 
 
 def read_image(path, is_raw=False):
