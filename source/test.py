@@ -60,10 +60,10 @@ from source.currentDebayer import debayer
 #
 #     cv2.imwrite(f"test_output/{counter}_gt.png", gt, [cv2.IMWRITE_PNG_COMPRESSION, 0])
 
-# path = ".\\output\\3.png"
-# savePath = ".\\test_output\\4.png"
+# path = ".\\output\\1.png"
+# savePath = ".\\test_output\\2.png"
 # image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
-# ##image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+# image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 # image = image / 255.0
 #
 # image = torch.from_numpy(image).float()
@@ -72,6 +72,8 @@ from source.currentDebayer import debayer
 #
 # print(f"image shape: {image.shape}")
 # torchvision.utils.save_image(image, savePath)
+
+#############################################
 
 path = ".\\samples\\1.CR2"
 savePath = ".\\test_output\\1.png"
@@ -85,16 +87,19 @@ print(f"batch_shape: {bayer_batch.shape}")
 print(f"batch_shape min: {bayer_batch.min()}")
 print(f"batch_shape max: {bayer_batch.max()}")
 with torch.no_grad():
-    a =debayer(bayer_batch).squeeze(0)
-print(f"a: {a.shape}")
-print(f"a min: {a.min()}")
-print(f"a max: {a.max()}")
-print(f"a min r: {a[0].min()}")
-print(f"a max r: {a[0].max()}")
-print(f"a min g: {a[1].min()}")
-print(f"a max g: {a[1].max()}")
-print(f"a min b: {a[2].min()}")
-print(f"a max b: {a[2].max()}")
+    raw.raw_image_visible[:] = bayer_batch.squeeze(0).squeeze(0).detach().numpy()
+    a = raw.postprocess()
+    #a =debayer(bayer_batch).squeeze(0)
+b = torch.from_numpy(a)
+print(f"b: {b.shape}")
+print(f"b min: {b.min()}")
+print(f"b max: {b.max()}")
+# print(f"a min r: {a[0].min()}")
+# print(f"a max r: {a[0].max()}")
+# print(f"a min g: {a[1].min()}")
+# print(f"a max g: {a[1].max()}")
+# print(f"a min b: {a[2].min()}")
+# print(f"a max b: {a[2].max()}")
 
 
-torchvision.utils.save_image(a, savePath)
+torchvision.utils.save_image(b, savePath)

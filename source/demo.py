@@ -9,7 +9,6 @@ import torch
 import torchvision
 from torch import nn
 
-
 from model import UnetTMO
 from source.currentDebayer import debayer
 
@@ -19,6 +18,7 @@ class newMO(nn.Module):
     def forward(self, x):
         return x, x
 
+
 map_location = torch.device('cpu')
 
 
@@ -27,7 +27,7 @@ def read_image(path):
     raw_image = raw.raw_image_visible.copy()
     raw_image = raw_image.astype(np.float32) / (2 ** 14 - 1)
     bayer_batch = torch.from_numpy(raw_image).unsqueeze(0).unsqueeze(0)
-    return bayer_batch
+    return bayer_batch, raw
 
 
 def read_pytorch_lightning_state_dict(ckpt):
@@ -41,7 +41,7 @@ def read_pytorch_lightning_state_dict(ckpt):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--checkpoint", type=str, default="..\\pretrained\\203.ckpt")
+parser.add_argument("--checkpoint", type=str, default="..\\pretrained\\2.ckpt")
 parser.add_argument("--input_dir", type=str, default="samples")
 parser.add_argument("--output_dir", type=str, default="output")
 
@@ -59,11 +59,18 @@ if not os.path.exists(args.output_dir):
 input_images = glob.glob(os.path.join(args.input_dir, "*"))
 for path in input_images:
     print("Processing:", path)
-    img = read_image(path)
+    img, raw = read_image(path)
     with torch.no_grad():
-        a, _ =model(img)
-        a =debayer(a).squeeze(0)
+        #img, _ =model(img)
+        img = (img * (2**14-1)).unsqueeze(0).unsqueeze(0).detach().numpy().astype(np.uint16)
+        raw.raw_image_visible[:] = img
+        img = raw.postprocess(use_camera_wb=True, no_auto_bright=True, output_bps=16,
+                              demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR)
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        a = img
+    print(type(a))
     print(f"a: {a.shape}")
     print(f"a min: {a.min()}")
     print(f"a max: {a.max()}")
-    torchvision.utils.save_image(a, path.replace(args.input_dir,args.output_dir).replace(".CR2",".png"))
+    cv2.imwrite(path.replace(args.input_dir, args.output_dir).replace(".NEF", ".png"), a,
+                [cv2.IMWRITE_PNG_COMPRESSION, 0])

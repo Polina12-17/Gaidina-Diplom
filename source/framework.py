@@ -60,10 +60,10 @@ class PSENet(LightningModule):
             img_gt = self.saved_gt
             debayered_img = debayer(pred_im)
 
-            # tv_loss = self.tv(debayer(pred_gamma))
+            tv_loss = self.tv(debayer(pred_gamma))
             reconstruction_loss = self.l1(debayered_img, img_gt)
 
-            loss = reconstruction_loss * self.tv_w  # + tv_loss * self.tv_w
+            loss = reconstruction_loss + tv_loss * self.tv_w
 
             # После одного шага оптимизации, напечатайте значения градиентов
             # for name, param in self.model.named_parameters():
