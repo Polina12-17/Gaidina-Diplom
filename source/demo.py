@@ -41,7 +41,7 @@ def read_pytorch_lightning_state_dict(ckpt):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--checkpoint", type=str, default="..\\pretrained\\50.ckpt")
+parser.add_argument("--checkpoint", type=str, default="..\\pretrained\\8.ckpt")
 parser.add_argument("--input_dir", type=str, default="samples")
 parser.add_argument("--output_dir", type=str, default="output")
 

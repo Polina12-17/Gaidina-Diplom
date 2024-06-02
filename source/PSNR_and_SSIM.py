@@ -14,7 +14,7 @@ def calculate_psnr(img1, img2):
 
 # Загрузка изображений
 original = cv2.imread('origin.png', cv2.IMREAD_GRAYSCALE)
-output = cv2.imread('50.png', cv2.IMREAD_GRAYSCALE)
+output = cv2.imread('8.png', cv2.IMREAD_GRAYSCALE)
 
 # Вычисление PSNR
 psnr_value = calculate_psnr(original, output)
