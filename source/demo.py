@@ -41,7 +41,7 @@ def read_pytorch_lightning_state_dict(ckpt):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--checkpoint", type=str, default="..\\pretrained\\2.ckpt")
+parser.add_argument("--checkpoint", type=str, default="..\\pretrained\\50.ckpt")
 parser.add_argument("--input_dir", type=str, default="samples")
 parser.add_argument("--output_dir", type=str, default="output")
 
@@ -61,16 +61,19 @@ for path in input_images:
     print("Processing:", path)
     img, raw = read_image(path)
     with torch.no_grad():
-        #img, _ =model(img)
+        img, _ =model(img)
         img = (img * (2**14-1)).unsqueeze(0).unsqueeze(0).detach().numpy().astype(np.uint16)
+        print(f"img: {img.shape}")
         raw.raw_image_visible[:] = img
-        img = raw.postprocess(use_camera_wb=True, no_auto_bright=True, output_bps=16,
+        img = raw.postprocess(use_camera_wb=True, no_auto_bright=True, output_bps=8,
                               demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR)
+        print(f"img post shape: {img.shape}")
+        img =cv2.resize(img , (3072, 4608))
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         a = img
     print(type(a))
     print(f"a: {a.shape}")
     print(f"a min: {a.min()}")
     print(f"a max: {a.max()}")
-    cv2.imwrite(path.replace(args.input_dir, args.output_dir).replace(".NEF", ".png"), a,
+    cv2.imwrite(path.replace(args.input_dir, args.output_dir).replace(".NEF", ".png").replace(".CR2", ".png"), a,
                 [cv2.IMWRITE_PNG_COMPRESSION, 0])

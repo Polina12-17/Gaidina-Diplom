@@ -68,7 +68,7 @@ class AfifiDataModule(LightningDataModule):
             # Заменить папку "INPUT_IMAGES" на "GT_IMAGES"
             gt_path = path.replace("INPUT_IMAGES", "GT_IMAGES")
             # Удалить приписку в конце имени файла, если она существует, и заменить на "_gt" с сохранением формата
-            gt_path = gt_path.replace(".CR2", ".png")
+            gt_path = gt_path.replace(".CR2", ".png").replace(".NEF",".png")
             return gt_path
 
         self.train_data = InMemoryDataset(data_root, "training/INPUT_IMAGES/*.*", get_label_fn, resize=256,

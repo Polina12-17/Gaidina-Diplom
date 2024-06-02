@@ -75,7 +75,7 @@ from source.currentDebayer import debayer
 
 #############################################
 
-path = ".\\samples\\1.CR2"
+path = ".\\samples\\1.NEF"
 savePath = ".\\test_output\\1.png"
 raw = rawpy.imread(path)
 raw_image = raw.raw_image_visible.copy()
@@ -87,13 +87,10 @@ print(f"batch_shape: {bayer_batch.shape}")
 print(f"batch_shape min: {bayer_batch.min()}")
 print(f"batch_shape max: {bayer_batch.max()}")
 with torch.no_grad():
-    raw.raw_image_visible[:] = bayer_batch.squeeze(0).squeeze(0).detach().numpy()
-    a = raw.postprocess()
-    #a =debayer(bayer_batch).squeeze(0)
-b = torch.from_numpy(a)
-print(f"b: {b.shape}")
-print(f"b min: {b.min()}")
-print(f"b max: {b.max()}")
+    a =debayer(bayer_batch).squeeze(0)
+print(f"b: {a.shape}")
+print(f"b min: {a.min()}")
+print(f"b max: {a.max()}")
 # print(f"a min r: {a[0].min()}")
 # print(f"a max r: {a[0].max()}")
 # print(f"a min g: {a[1].min()}")
@@ -102,4 +99,4 @@ print(f"b max: {b.max()}")
 # print(f"a max b: {a[2].max()}")
 
 
-torchvision.utils.save_image(b, savePath)
+torchvision.utils.save_image(a, savePath)
