@@ -12,7 +12,7 @@ def read_image(path, is_raw=False):
     # print("path ", path)
 
     raw = rawpy.imread(path)
-    im = raw.postprocess(bright=True, use_camera_wb=True,
+    im = raw.postprocess( use_camera_wb=True,
                          demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR)
 
     raw.close()
@@ -31,5 +31,5 @@ data_list = sorted(glob.glob(path + "*.*", recursive=True))
 for p in data_list:
     print(p)
     im = read_image(p)
-    np = p.replace("INPUT_IMAGES", "GT_IMAGES").replace("CR2", "png")
+    np = p.replace("INPUT_IMAGES", "GT_IMAGES").replace("NEF", "png")
     torchvision.utils.save_image(im, np)

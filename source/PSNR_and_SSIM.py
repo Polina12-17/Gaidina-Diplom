@@ -13,7 +13,7 @@ def calculate_psnr(img1, img2):
     return 10 * np.log10((PIXEL_MAX ** 2) / mse)
 
 # Загрузка изображений
-original = cv2.imread('origin.png', cv2.IMREAD_GRAYSCALE)
+original = cv2.imread('../origin.png', cv2.IMREAD_GRAYSCALE)
 output = cv2.imread('8.png', cv2.IMREAD_GRAYSCALE)
 
 # Вычисление PSNR
