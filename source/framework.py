@@ -54,41 +54,23 @@ class PSENet(LightningModule):
 
     def training_step(self, batch, batch_idx):
         nth_input, nth_gt = batch
-        if self.saved_input is not None:  # не работает для первой итерации
-            im = self.saved_input[0]
-            pred_im, pred_gamma = self.model(im)
-            img_gt = self.saved_gt
-            debayered_img = debayer(pred_im)
-
-            tv_loss = self.tv(debayer(pred_gamma))
-            reconstruction_loss = self.l1(debayered_img, img_gt)
-
-            loss = reconstruction_loss + tv_loss * self.tv_w
-
-            # После одного шага оптимизации, напечатайте значения градиентов
-            # for name, param in self.model.named_parameters():
-            #     if param.grad is not None:
-            #         print(f"{name}: {param.grad.norm()}")
-            #     else:
-            #         print(f"{name}: No gradient")
-
-            # for name, param in self.model.named_parameters():
-            #     if not param.requires_grad:
-            #         print(f"{name} does not require grad")
-            #     else:
-            #         print(f"{name} ok")
-
-            # logging
-            self.log("train_loss/reconstruction", reconstruction_loss, on_epoch=True, on_step=False)
-            # self.log("train_loss/tv", tv_loss, on_epoch=True, on_step=False)
-            self.log("total_loss", loss, on_epoch=True, on_step=False)
-
-        else:
-            loss = None
-            self.log("total_loss", 0, on_epoch=True, on_step=False)
 
         self.saved_input = nth_input
         self.saved_gt = nth_gt
+        im = self.saved_input[0]
+        pred_im, pred_gamma = self.model(im)
+        img_gt = self.saved_gt
+        debayered_img = debayer(pred_im)
+
+        tv_loss = self.tv(debayer(pred_gamma))
+        reconstruction_loss = self.l1(debayered_img, img_gt)
+
+        loss = reconstruction_loss + tv_loss * self.tv_w
+
+        # logging
+        self.log("train_loss/reconstruction", reconstruction_loss, on_epoch=True, on_step=False)
+        self.log("total_loss", loss, on_epoch=True, on_step=False)
+
 
         return loss
 

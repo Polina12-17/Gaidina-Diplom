@@ -76,19 +76,5 @@ class AfifiDataModule(LightningDataModule):
         self.train_loader = DataLoader(self.train_data, batch_size=train_batch_size, shuffle=True,
                                        num_workers=num_workers)
 
-        self.val_data = InMemoryDataset(data_root, "validation/INPUT_IMAGES/*.*", get_label_fn,
-                                        return_name=False)
-        self.val_loader = DataLoader(self.val_data, batch_size=val_batch_size, shuffle=False, num_workers=num_workers)
-
-        self.test_data = InMemoryDataset(data_root, "testing/INPUT_IMAGES/*.*", get_label_fn,
-                                         return_name=True)
-        self.test_loader = DataLoader(self.test_data, batch_size=1, shuffle=False, num_workers=num_workers)
-
     def train_dataloader(self):
         return self.train_loader
-
-    def val_dataloader(self):
-        return self.val_loader
-
-    def test_dataloader(self):
-        return self.test_loader

@@ -3,42 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class Hswish(nn.Module):
-    def __init__(self, inplace=True):
-        super(Hswish, self).__init__()
-        self.inplace = inplace
-
-    def forward(self, x):
-        return x * F.relu6(x + 3.0, inplace=self.inplace) / 6.0
-
-
-class Hsigmoid(nn.Module):
-    def __init__(self, inplace=True):
-        super(Hsigmoid, self).__init__()
-        self.inplace = inplace
-
-    def forward(self, x):
-        return F.relu6(3 * x + 3.0, inplace=self.inplace) / 6.0
-
-
-class HTanh(nn.Module):
-    def __init__(self, inplace=True):
-        super(HTanh, self).__init__()
-        self.inplace = inplace
-
-    def forward(self, x):
-        return F.relu6(x, inplace=self.inplace) / 3.0 - 1.0
-
-
-class NegHsigmoid(nn.Module):
-    def __init__(self, inplace=True):
-        super(NegHsigmoid, self).__init__()
-        self.inplace = inplace
-
-    def forward(self, x):
-        return F.relu6(3 * x + 3.0, inplace=self.inplace) / 6.0 - 0.5
-
-
 class SEModule(nn.Module):
     def __init__(self, channel, reduction=1):
         super(SEModule, self).__init__()
@@ -64,24 +28,13 @@ class Identity(nn.Module):
 
 
 class MobileBottleneck(nn.Module):
-    def __init__(self, inp, oup, kernel, stride, exp, se="SE", nl="RE"):
+    def __init__(self, inp, oup, kernel, stride, exp, se="SE"):
         super(MobileBottleneck, self).__init__()
         assert stride in [1, 2]
         padding = (kernel - 1) // 2
         self.use_res_connect = stride == 1 and inp == oup
         conv_layer = nn.Conv2d
-        if nl == "RE":
-            nlin_layer = nn.ReLU
-        elif nl == "HS":
-            nlin_layer = Hswish
-        elif nl == "LeRE":
-            nlin_layer = nn.LeakyReLU
-        elif nl == "HSig":
-            nlin_layer = Hsigmoid
-        elif nl == "NegHSig":
-            nlin_layer = NegHsigmoid
-        else:
-            raise NotImplementedError
+        nlin_layer = nn.LeakyReLU
         if se == "SE":
             SELayer = SEModule
         else:
@@ -117,22 +70,21 @@ class MobileBottleneck(nn.Module):
 
 class UnetTMO(nn.Module):
     def __init__(
-        self,
+            self,
     ):
         super().__init__()
-        self.first_conv = MobileBottleneck(1, 1, 3, 1, 6, nl="LeRE")
+        self.first_conv = MobileBottleneck(1, 1, 3, 1, 6)
         base_number = 16
-        self.conv1 = MobileBottleneck(1, base_number, 3, 2, int(base_number * 1.5), False, "LeRE")
-        self.conv2 = MobileBottleneck(base_number, base_number, 3, 1, int(base_number * 1.5), False, "LeRE")
-        self.conv3 = MobileBottleneck(base_number, base_number * 2, 3, 2, base_number * 3, False, "LeRE")
-        self.conv5 = MobileBottleneck(base_number * 2, base_number * 2, 3, 1, base_number * 3, False, "LeRE")
-        self.conv6 = MobileBottleneck(base_number * 2, base_number, 3, 1, base_number * 3, False, "LeRE")
-        self.conv7 = MobileBottleneck(base_number * 2, base_number, 3, 1, base_number * 3, False, "LeRE")
-        self.conv8 = MobileBottleneck(base_number, 1, 3, 1, int(base_number * 1.5), False, "LeRE")
-        self.last_conv = MobileBottleneck(2, 1, 3, 1, 9, nl="LeRE")
+        self.conv1 = MobileBottleneck(1, base_number, 3, 2, int(base_number * 1.5), False)
+        self.conv2 = MobileBottleneck(base_number, base_number, 3, 1, int(base_number * 1.5), False)
+        self.conv3 = MobileBottleneck(base_number, base_number * 2, 3, 2, base_number * 3, False)
+        self.conv5 = MobileBottleneck(base_number * 2, base_number * 2, 3, 1, base_number * 3, False)
+        self.conv6 = MobileBottleneck(base_number * 2, base_number, 3, 1, base_number * 3, False)
+        self.conv7 = MobileBottleneck(base_number * 2, base_number, 3, 1, base_number * 3, False)
+        self.conv8 = MobileBottleneck(base_number, 1, 3, 1, int(base_number * 1.5), False)
+        self.last_conv = MobileBottleneck(2, 1, 3, 1, 9)
 
     def forward(self, x):
-
         x_down = x
         x_1 = self.first_conv(x)
         r = self.conv1(x_1)
