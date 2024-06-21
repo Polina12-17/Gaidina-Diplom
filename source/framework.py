@@ -1,6 +1,6 @@
 import os
 
-import piq  # для оценки изображения
+import piq
 import torch
 import torchvision
 from pytorch_lightning.core.lightning import LightningModule
@@ -27,30 +27,27 @@ class PSENet(LightningModule):
         self.gamma_lower = gamma_lower
         self.gamma_upper = gamma_upper
         self.number_refs = number_refs
-        self.afifi_evaluation = afifi_evaluation  # выполняется ли оценка с использованием метода Afifi
-        self.lr = lr  # скорость обучения
+        self.afifi_evaluation = afifi_evaluation
+        self.lr = lr
         self.model = UnetTMO()
-        self.mse = torch.nn.MSELoss()  # функция потерь todo это шо???
-        self.tv = TVLoss()  # регуляризация общей вариации todo
-        self.l1 = torch.nn.SmoothL1Loss()  # регуляризация общей вариации todo
+        self.mse = torch.nn.MSELoss()
+        self.tv = TVLoss()
+        self.l1 = torch.nn.SmoothL1Loss()
         self.saved_input = None
         self.saved_gt = None
 
-    def configure_optimizers(self):  # переопределения функции родителя
+    def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr,
-                                     betas=[0.9, 0.99])  # это то что обучает нейронку и меняет в ней веса
+                                     betas=[0.9, 0.99])
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10,
-                                                               factor=0.5)  # динамически изменять скорость обучения в зависимости от поведения функции потерь. Если в течение определенного количества эпох (указано параметром patience) значение функции потерь не уменьшится, скорость обучения будет уменьшена в factor раз.
+                                                               factor=0.5)
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "total_loss"}
 
-    def training_epoch_end(self, outputs):  # переопределения функции родителя . вызывается в конце каждой
-        # эпохи обучения и позволяет выполнить какие-либо дополнительные действия или обработку результатов
-        # обучения перед переходом к следующей эпохе. В данном случае, метод используется для обновления
-        # скорости обучения в планировщике скорости обучения
+    def training_epoch_end(self, outputs):
         sch = self.lr_schedulers()
         if isinstance(sch, torch.optim.lr_scheduler.ReduceLROnPlateau):
             sch.step(
-                self.trainer.callback_metrics["total_loss"])  ## адаптирует шаг обучения в зависимости от функции потерь
+                self.trainer.callback_metrics["total_loss"])
 
     def training_step(self, batch, batch_idx):
         nth_input, nth_gt = batch
@@ -74,26 +71,18 @@ class PSENet(LightningModule):
 
         return loss
 
-    def validation_step(self, batch, batch_idx):  # Метод validation_step используется для
-        # выполнения шага валидации модели на отдельном пакете данных.
-        # Здесь, в отличие от training_step, нет обновления весов модели
-        # или вычисления потерь - это просто оценка модели на валидационных данных.
+    def validation_step(self, batch, batch_idx):
         if batch_idx == 0:
             pred_im, pred_gamma = self.model(
-                batch)  # Модель используется для получения предсказанных значений на текущем пакете данных.
-            # Здесь pred_im - предсказанные изображения, а
-            # pred_gamma - предсказанные значения параметра гамма
+                batch)
             self.logger.experiment.add_images("val_input", batch, self.current_epoch)
             self.logger.experiment.add_images("val_output", pred_im, self.current_epoch)
 
-    def test_step(self, batch, batch_idx, test_idx=0):  # используется для выполнения шага тестирования
-        # модели на отдельном пакете данных. Он похож на
-        # validation_step, но предназначен для тестирования
-        # модели, а не ее валидации.
-        input_im, path = batch[0], batch[-1]  # Извлекает входное изображение
-        pred_im, pred_gamma = self.model(input_im)  # предсказывает значение
+    def test_step(self, batch, batch_idx, test_idx=0):
+        input_im, path = batch[0], batch[-1]
+        pred_im, pred_gamma = self.model(input_im)
         for i in range(len(path)):
-            save_image(pred_im[i], os.path.join(self.logger.log_dir, path[i]))  # сохраняет изображения
+            save_image(pred_im[i], os.path.join(self.logger.log_dir, path[i]))
 
         if len(batch) == 3:
             gt = batch[1]

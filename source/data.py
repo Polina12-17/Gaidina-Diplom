@@ -41,7 +41,6 @@ class InMemoryDataset(Dataset):
     def read_png_to_matrix(path, resize):
         print("path ", path)
 
-        # Чтение изображения
         image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
         image = image / 255.0
 
@@ -65,9 +64,7 @@ class AfifiDataModule(LightningDataModule):
         super().__init__()
 
         def get_label_fn(path):
-            # Заменить папку "INPUT_IMAGES" на "GT_IMAGES"
             gt_path = path.replace("INPUT_IMAGES", "GT_IMAGES")
-            # Удалить приписку в конце имени файла, если она существует, и заменить на "_gt" с сохранением формата
             gt_path = gt_path.replace(".CR2", ".png").replace(".NEF",".png")
             return gt_path
 

@@ -9,7 +9,7 @@ class SEModule(nn.Module):
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
             nn.Conv2d(channel, channel // reduction, 1, 1, 0, bias=True),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(inplace=True),
             nn.Conv2d(channel // reduction, channel, 1, 1, 0, bias=True),
         )
 
