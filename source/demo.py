@@ -21,6 +21,8 @@ map_location = torch.device('cpu')
 
 
 def read_image(path):
+    if not path.lower().endswith(".arw, .cr2, .cr3, .nef, .raw, .raf"):
+        raise Exception("illegal file extension for {}".format(path.strip(".")[-1]))
     raw = rawpy.imread(path)
     raw_image = raw.raw_image_visible.copy()
     raw_image = raw_image.astype(np.float32) / (2 ** 14 - 1)

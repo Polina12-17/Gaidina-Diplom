@@ -17,7 +17,9 @@ class InMemoryDataset(Dataset):
         self.resize = resize
         self.return_name = return_name
         self.data = []
-        for index, path in enumerate(self.data_list):
+        for path in self.data_list:
+            if not path.lower().endswith(".arw, .cr2, .cr3, .nef, .raw, .raf"):
+                raise Exception("illegal file extension for {}".format(path.strip(".")[-1]))
             im = self.read_raw(path, resize)
             im_gt = self.read_png_to_matrix(get_label_fn(path), resize)
             self.data.append((im, im_gt))
@@ -28,7 +30,7 @@ class InMemoryDataset(Dataset):
         print("path ", path)
         raw = rawpy.imread(path)
         # Получаем сырое изображение в формате Bayer
-        raw_image = raw.raw_image_visible.copy().astype(np.float32) / (2**14-1)
+        raw_image = raw.raw_image_visible.copy().astype(np.float32) / (2 ** 14 - 1)
         if (resize is not None):
             raw_image = cv2.resize(raw_image, (resize, resize))
         assert raw_image is not None, path
@@ -65,7 +67,7 @@ class AfifiDataModule(LightningDataModule):
 
         def get_label_fn(path):
             gt_path = path.replace("INPUT_IMAGES", "GT_IMAGES")
-            gt_path = gt_path.replace(".CR2", ".png").replace(".NEF",".png")
+            gt_path = gt_path.replace(path.split(".")[-1], "png")
             return gt_path
 
         self.train_data = InMemoryDataset(data_root, "training/INPUT_IMAGES/*.*", get_label_fn, resize=256,

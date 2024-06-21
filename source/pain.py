@@ -22,13 +22,16 @@ def read_image(file):
 
 st.title("Image Processing with Streamlit")
 
-uploaded_file = st.file_uploader("Choose an image file (CR2 format)", type=["cr2"])
+uploaded_file = st.file_uploader("Choose an image file (CR2 format)",
+                                 type=["cr2", 'arw', 'cr2', 'cr3', 'nef', 'raw', 'raf'])
 
 if uploaded_file is not None:
-    with open("temp.cr2", "wb") as f:
+
+    fileName = 'temp.' + uploaded_file.name.split(".")[-1]
+    with open(fileName, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    image, raw = read_image("temp.cr2")
+    image, raw = read_image(fileName)
     img = raw.postprocess(use_camera_wb=True, output_bps=16,
                           demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR)
     bgr_out = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
